@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
 
 function App() {
@@ -45,8 +45,8 @@ function App() {
     });
 
     try {
-      // Use the official CDN with correct version - use esm for Vite
-      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
+      // Self-hosted FFmpeg core files (no CDN dependency)
+      const baseURL = '/ffmpeg';
 
       console.log('Loading FFmpeg core from:', baseURL);
       await ffmpeg.load({
@@ -152,12 +152,17 @@ function App() {
       // -c copy: no re-encoding (much faster)
       // Note: May start slightly before requested time due to keyframe positions
       const exitCode = await ffmpeg.exec([
-        '-ss', startTimeInSeconds.toString(),
-        '-i', 'input.mp4',
-        '-t', duration.toString(),
-        '-c', 'copy',
-        '-avoid_negative_ts', 'make_zero',
-        'output.mp4'
+        '-ss',
+        startTimeInSeconds.toString(),
+        '-i',
+        'input.mp4',
+        '-t',
+        duration.toString(),
+        '-c',
+        'copy',
+        '-avoid_negative_ts',
+        'make_zero',
+        'output.mp4',
       ]);
 
       console.log('FFmpeg execution complete with exit code:', exitCode);
@@ -221,7 +226,7 @@ function App() {
         const clickEvent = new MouseEvent('click', {
           view: window,
           bubbles: true,
-          cancelable: true
+          cancelable: true,
         });
         a.dispatchEvent(clickEvent);
         console.log('Event dispatch attempted');
@@ -237,7 +242,8 @@ function App() {
       }, 5000);
 
       // Show success message with option to try again
-      const message = 'Video trimmed successfully! ✅\n\nIf the download didn\'t start:\n1. Check your Downloads folder\n2. Click "OK" to open the video in a new tab\n3. Right-click the video and select "Save video as..."';
+      const message =
+        'Video trimmed successfully! ✅\n\nIf the download didn\'t start:\n1. Check your Downloads folder\n2. Click "OK" to open the video in a new tab\n3. Right-click the video and select "Save video as..."';
 
       if (confirm(message)) {
         // Open in new tab as fallback
@@ -281,12 +287,17 @@ function App() {
 
       await ffmpeg.writeFile('input.mp4', await fetchFile(currentFile));
       await ffmpeg.exec([
-        '-ss', startTimeInSeconds.toString(),
-        '-i', 'input.mp4',
-        '-t', duration.toString(),
-        '-c', 'copy',
-        '-avoid_negative_ts', 'make_zero',
-        'output.mp4'
+        '-ss',
+        startTimeInSeconds.toString(),
+        '-i',
+        'input.mp4',
+        '-t',
+        duration.toString(),
+        '-c',
+        'copy',
+        '-avoid_negative_ts',
+        'make_zero',
+        'output.mp4',
       ]);
 
       const data = await ffmpeg.readFile('output.mp4');
@@ -307,7 +318,7 @@ function App() {
         await navigator.share({
           files: [file],
           title: 'Trimmed Video',
-          text: 'Your trimmed video is ready'
+          text: 'Your trimmed video is ready',
         });
       } else {
         alert('Share not supported. Video will download instead.');
@@ -361,18 +372,27 @@ function App() {
   }, [currentUrl]);
 
   return (
-    <div className="app">
-      <h1>📹 Video Upload, Trim & Download</h1>
-
-      <div className="upload-section">
-        <h3>Select a video file</h3>
+    <div className="max-w-3xl mx-auto p-5">
+      <div className="bg-gray-100 py-3 px-2 rounded-xl mb-5 text-center">
         <input
           ref={fileInputRef}
           type="file"
           id="videoInput"
           accept="video/*"
           onChange={handleFileChange}
+          className="hidden"
         />
+        <label
+          htmlFor="videoInput"
+          className="inline-block bg-blue-600 text-white py-3 px-8 text-base font-medium rounded-lg cursor-pointer transition-all hover:bg-blue-700 hover:shadow-lg active:scale-95"
+        >
+          Choose Video File
+        </label>
+        {currentFile && (
+          <p className="mt-3 text-sm text-gray-600">
+            Selected: <span className="font-medium">{currentFile.name}</span>
+          </p>
+        )}
       </div>
 
       {currentUrl && (
@@ -382,69 +402,132 @@ function App() {
           src={currentUrl}
           controls
           onLoadedMetadata={handleLoadedMetadata}
-        />
+          className="w-full max-w-[700px] my-5 mx-auto block rounded-xl shadow-md"
+        >
+          <track kind="captions" srcLang="en" label="English" />
+        </video>
       )}
 
       {currentFile && (
-        <div className="info">
-          <strong>File:</strong> {currentFile.name}<br />
-          <strong>Size:</strong> {(currentFile.size / (1024 * 1024)).toFixed(2)} MB<br />
-          <strong>Type:</strong> {currentFile.type}
+        <div className="bg-blue-50 p-4 rounded-lg my-5 leading-relaxed text-sm">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <span className="text-gray-600 block mb-1">File Name</span>
+              <span className="font-medium">{currentFile.name}</span>
+            </div>
+            <div>
+              <span className="text-gray-600 block mb-1">Size</span>
+              <span className="font-medium">{(currentFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+            </div>
+            <div>
+              <span className="text-gray-600 block mb-1">Type</span>
+              <span className="font-medium">{currentFile.type}</span>
+            </div>
+          </div>
         </div>
       )}
 
       {showTrimControls && (
-        <div className="trim-controls">
-          <h3>✂️ Trim Video</h3>
-          <p className="trim-hint">💡 Drag the sliders to see video frames in real-time</p>
+        <div className="bg-white border-2 border-gray-300 rounded-xl p-5 my-5">
+          <h3 className="text-gray-600 mb-4 text-lg font-semibold">✂️ Trim Video</h3>
 
-          <div className="range-container">
-            <label>Start Time: <span>{formatTime(startTimeInSeconds)}</span></label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={startTime}
-              step="0.1"
-              onInput={(e) => handleStartTimeChange(parseFloat(e.currentTarget.value))}
-              onChange={(e) => handleStartTimeChange(parseFloat(e.target.value))}
-            />
+          <div className="my-6">
+            <div className="flex justify-between mb-3 text-sm font-medium text-gray-600">
+              <span>Start: {formatTime(startTimeInSeconds)}</span>
+              <span>Duration: {formatTime(duration)}</span>
+              <span>End: {formatTime(endTimeInSeconds)}</span>
+            </div>
+
+            {/* Dual-handle range slider */}
+            <div className="relative h-12 flex items-center">
+              {/* Track background */}
+              <div className="absolute w-full h-2 bg-gray-300 rounded-full"></div>
+
+              {/* Active range */}
+              <div
+                className="absolute h-2 bg-green-500 rounded-full"
+                style={{
+                  left: `${startTime}%`,
+                  width: `${endTime - startTime}%`,
+                }}
+              ></div>
+
+              {/* Start handle */}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={startTime}
+                step="0.1"
+                onChange={(e) => handleStartTimeChange(parseFloat(e.target.value))}
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-green-500 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-green-500 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:border-0"
+              />
+
+              {/* End handle */}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={endTime}
+                step="0.1"
+                onChange={(e) => handleEndTimeChange(parseFloat(e.target.value))}
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-blue-500 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-blue-500 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:border-0"
+              />
+            </div>
+
+            <div className="flex justify-between mt-2 text-xs text-gray-500">
+              <span>🟢 Start</span>
+              <span>🔵 End</span>
+            </div>
           </div>
 
-          <div className="range-container">
-            <label>End Time: <span>{formatTime(endTimeInSeconds)}</span></label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={endTime}
-              step="0.1"
-              onInput={(e) => handleEndTimeChange(parseFloat(e.currentTarget.value))}
-              onChange={(e) => handleEndTimeChange(parseFloat(e.target.value))}
-            />
-          </div>
-
-          <div className="trim-preview">
-            <strong>Duration:</strong> <span>{formatTime(duration)}</span>
-          </div>
-
-          <button onClick={handlePreviewTrim}>👁️ Preview Trim</button>
-          <button className="success" onClick={handleTrim}>✂️ Trim & Download</button>
+          <button
+            type="button"
+            onClick={handlePreviewTrim}
+            className="bg-blue-600 text-white border-none py-3 px-6 text-base rounded-md cursor-pointer m-1 transition-colors hover:bg-blue-700 md:w-auto w-full"
+          >
+            👁️ Preview Trim
+          </button>
+          <button
+            type="button"
+            onClick={handleTrim}
+            className="bg-green-600 text-white border-none py-3 px-6 text-base rounded-md cursor-pointer m-1 transition-colors hover:bg-green-700 md:w-auto w-full"
+          >
+            ✂️ Trim & Download
+          </button>
         </div>
       )}
 
       {loading && (
-        <div className="loading">
-          <div className="spinner"></div>
-          <p>Processing video...</p>
+        <div className="fixed top-0 left-0 w-full h-full bg-black/70 flex flex-col justify-center items-center z-[1000]">
+          <div className="border-[6px] border-gray-200 border-t-green-500 rounded-full w-16 h-16 animate-spin"></div>
+          <p className="text-white mt-5 text-lg">Processing video...</p>
         </div>
       )}
 
       {showActions && (
-        <div className="actions">
-          <button onClick={handleDownload}>⬇️ Download Original</button>
-          <button className="success" onClick={handleShare}>📤 Share/Save to Photos</button>
-          <button onClick={handleClear}>🗑️ Clear</button>
+        <div className="text-center my-8 p-5 bg-gray-50 rounded-xl">
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="bg-blue-600 text-white border-none py-3 px-6 text-base rounded-md cursor-pointer m-1 transition-colors hover:bg-blue-700 md:w-auto w-full"
+          >
+            ⬇️ Download Original
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            className="bg-green-600 text-white border-none py-3 px-6 text-base rounded-md cursor-pointer m-1 transition-colors hover:bg-green-700 md:w-auto w-full"
+          >
+            📤 Share/Save to Photos
+          </button>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="bg-blue-600 text-white border-none py-3 px-6 text-base rounded-md cursor-pointer m-1 transition-colors hover:bg-blue-700 md:w-auto w-full"
+          >
+            🗑️ Clear
+          </button>
         </div>
       )}
     </div>
